@@ -66,7 +66,7 @@ if __name__ == '__main__':
         if args.reranker == 'icr':
             args.retrieval_type='QA'
     else:
-        query_set = json.load(open(f'./retriever_outpout/icr_beir_{args.data}_{args.retriever}_top_{args.top_k}.json'))
+        query_set = json.load(open(f'./retriever_output/icr_beir_{args.data}_{args.retriever}_top_{args.top_k}.json'))
         id_key = 'idx'
         beir_exp = True
 
