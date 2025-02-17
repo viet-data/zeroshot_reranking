@@ -45,7 +45,7 @@ def bm25_retrieve_beir(task, K):
             
         ICR_data.append(_sample)
         _sample['num_gold_docs'] = hit_items
-    output_file_name = 'retriever_outpout/icr_beir_{}_bm25_top_{}.json'.format(task, K)
+    output_file_name = 'retriever_output/icr_beir_{}_bm25_top_{}.json'.format(task, K)
     with open(output_file_name, 'w') as f:
         json.dump(ICR_data, f, indent=2)
     print('Saved retrieval results to ', output_file_name)
