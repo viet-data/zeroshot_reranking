@@ -1021,7 +1021,7 @@ class LlamaModel(LlamaPreTrainedModel):
                 all_hidden_states += (hidden_states,)
             try:
                 if embeddings is not None:
-                    hidden_states[0][input_ids==self.tokenzier.bos_token_id] = embeddings[idx][0]
+                    hidden_states[0][input_ids==self.tokenzier.bos_token_id] = embeddings[idx]
             except:
                 import pdb 
                 pdb.set_trace()
