@@ -212,14 +212,15 @@ class InContextReranker():
         self.tokenizer.pad_token = self.tokenizer.eos_token
         from src.get_embedding import merge_vectors_slerp
         input_ids = self.tokenizer(doc, return_tensors="pt").input_ids.to(self.llm.device)
-        generation_output = self.llm(input_ids=input_ids, 
-                                      output_hidden_states=True
-                                       )
-        old_values = generation_output.hidden_states  
-        old_values = torch.cat([i.mean(dim=1, keepdim=True) for i in old_values], dim=0)
-        dct[doc] = old_values
-        
-        return old_values
+        with torch.no_grad():
+            generation_output = self.llm(input_ids=input_ids, 
+                                        output_hidden_states=True
+                                        )
+            old_values = generation_output.hidden_states  
+            old_values = torch.cat([i.mean(dim=1, keepdim=True) for i in old_values], dim=0)
+            dct[doc] = old_values
+            
+            return old_values
 
     def score_documents_demo(
             self,
