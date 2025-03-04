@@ -124,6 +124,8 @@ class InContextReranker():
             self.sliding_window_stride = sliding_window_size//2
         else:
             self.sliding_window_stride = sliding_window_stride
+
+        self.doc2embed = {}
         
     def _setup_llm_prompts(self, prompt_template, base_llm_name):
         
@@ -205,6 +207,132 @@ class InContextReranker():
 
         assert len(sorted_doc_ids) == len(sorted_doc_scores), "Length mismatch between sorted doc ids ({}) and scores({})!".format(len(sorted_doc_ids), len(sorted_doc_scores))
         return (sorted_doc_ids, sorted_doc_scores), per_doc_results
+    
+    def get_state(self, doc, dct):
+        from src.get_embedding import merge_vectors_slerp
+        input_ids = self.tokenizer(doc, return_tensors="pt").input_ids.to(self.llm.device)
+        generation_output = self.llm.generate(input_ids=input_ids, 
+                                       max_new_tokens=1,
+                                       return_dict_in_generate=True,
+                                       )
+        old_values = generation_output.past_key_values
+        def listit(t):
+            return list(map(listit, t)) if isinstance(t, (list, tuple)) else t
+        old_values = listit(old_values)
+        for i in range(len(old_values)):
+            for j in range(len(old_values[i])):
+                if isinstance(old_values[i][j], tuple):
+                    for k in range(len(old_values[i][j])):
+                        old_values[i][j][k] = merge_vectors_slerp(old_values[i][j][k])
+                else:
+                    try:
+                        cls = old_values[i][j][:,:, :1]
+                        middle = old_values[i][j][:,:, 1:-1].mean(dim=2, keepdim=True)
+                        last = old_values[i][j][:,:, -1:]
+                        old_values[i][j] = torch.cat([cls, middle, last], dim=2)
+                    except Exception as e:
+                        print(e)
+                        raise e
+        dct[doc] = old_values[0][0]
+        return old_values[0][0]
+
+    def score_documents_demo(
+            self,
+            docs, 
+            llm_input,
+            doc_tok_idx_spans,
+            query_start_tok_idx,
+            query_end_tok_idx,
+            context_start_idx=0,
+            return_per_doc_results=False,
+            long_prompt=False,
+            return_cache=False,
+            kv_cache=None,
+        ):
+        embeddings = torch.cat([self.doc2embed[i] if i in self.doc2embed else self.get_state(i, self.doc2embed) for i in docs], dim=1)
+        self.llm.tokenzier = self.tokenizer
+        tokenized_input = self.tokenizer(llm_input,return_tensors='pt').to(self.llm.device)
+        _input_ids = tokenized_input.input_ids[:, context_start_idx:]
+        _query_indices = list(range(query_start_tok_idx-context_start_idx, query_end_tok_idx-context_start_idx+1))
+        
+        if kv_cache is None:
+            if self._use_fa2:
+                kv_cache=DynamicCacheWithQuery(query_indices=_query_indices)
+            else:
+                kv_cache=DynamicCache()
+        else:
+            kv_cache.query_cache = []
+            _query_indices = _query_indices
+            kv_cache._query_indices = _query_indices
+
+        with torch.no_grad():
+            output = self.llm(
+                input_ids=_input_ids,
+                use_cache=True,
+                past_key_values=kv_cache,
+                output_attentions=True,
+                embeddings=embeddings
+                )
+
+        if self._use_fa2:
+            # Extract key and query vectors from FA2. Then recompute attention scores for re-ranking.
+            kv_cache = output.past_key_values
+
+            long_prompt = False
+            if len(_input_ids[0]) > 40000:
+                # For sequences that are too long, compute scores on CPU to void GPU OOM.
+                # Adjust the limit here depending on your system configuration.
+                print('Long sequence of more than 40K tokens detected. Computing attention scores on CPU.')
+                long_prompt = True
+            
+            attention_weights = []
+            doc_tok_weights = []
+            
+            if long_prompt:
+                _device = 'cpu'
+            else:
+                _device = 'cuda:0'
+            
+            # loop through all layers and compute attention scores
+            for i in range(self.start_layer, self.end_layer+1):                     
+                attn_weights = self._get_attn_weights(kv_cache.key_cache[i][:,:,:query_end_tok_idx+1], kv_cache.query_cache[i],  use_cpu=long_prompt).to(_device).squeeze(0)
+                attn_weights = attn_weights.mean(1) # average over query tokens
+                attention_weights.append(attn_weights.squeeze(0))
+                
+        else:
+            # Directly extract attention weights from the attention layers of the LLM.
+            attention_weights = [attn[0][:,query_start_tok_idx:query_end_tok_idx+1,:].mean(1) for attn in output.attentions]
+
+        attention_weights = torch.stack(attention_weights, dim=0)
+        
+        if return_per_doc_results != 'none':
+            per_doc_results = [[None, None] for _ in range(len(doc_tok_idx_spans))]
+        else:
+            per_doc_results = None
+    
+        attention_weights = attention_weights.sum(0) # sum attention scores across layers            
+        attention_weights = attention_weights.sum(0) # sum attention scores across attention heads
+        doc_scores = []
+        
+        for i, doc_span in enumerate(doc_tok_idx_spans): 
+            _tok_score = attention_weights[doc_span[0]:doc_span[1]]
+            doc_scores.append(_tok_score.sum())
+
+            if return_per_doc_results != 'none':
+                _doc_tok_ids = tokenized_input.input_ids[0][doc_span[0]:doc_span[1]]
+                _doc_toks = self.tokenizer.convert_ids_to_tokens(_doc_tok_ids)
+                per_doc_results[i][0] = _doc_toks
+                per_doc_results[i][1] = _tok_score.clone().detach() # sum over layers
+            
+        doc_scores = torch.tensor(doc_scores)
+        gc.collect()
+        torch.cuda.empty_cache()
+
+        if return_cache:
+            return doc_scores, per_doc_results, kv_cache
+        else:
+            return doc_scores, per_doc_results
+
 
     def score_documents(
             self,
@@ -367,6 +495,10 @@ class InContextReranker():
 
             doc_scores_calib, doc_tok_scores_calib_na, kv_cache = self.score_documents(llm_prompt, doc_tok_idx_spans, query_start_idx, query_end_idx, return_per_doc_results=return_per_doc_results,  return_cache=True)
             
+            llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo = self._prepare_input_for_document_retrieval(calibration_query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
+
+            doc_scores_calib_demo, doc_tok_scores_calib_na_demo, kv_cache_demo = self.score_documents_demo(retrieval_doc_pool, llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo, return_per_doc_results=return_per_doc_results,  return_cache=True)
+            
             # Use kv_cache from first query to speed up forward() for the calibration query.
             # query_start_idx should be the same for both queries.
             for i in range(len(kv_cache.key_cache)):
@@ -384,7 +516,10 @@ class InContextReranker():
         
             doc_scores_query, perdoc_result = self.score_documents(llm_prompt, doc_tok_idx_spans, query_start_idx, query_end_idx, return_per_doc_results=return_per_doc_results,  kv_cache=kv_cache, context_start_idx=context_start_idx)
 
-            
+            llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo = self._prepare_input_for_document_retrieval(query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
+        
+            doc_scores_query_demo, perdoc_result_demo = self.score_documents_demo(retrieval_doc_pool, llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo, return_per_doc_results=return_per_doc_results,  kv_cache=kv_cache, context_start_idx=context_start_idx)
+
             _i = 0
             doc_scores = torch.zeros(len(retrieval_doc_pool))
 
@@ -417,7 +552,116 @@ class InContextReranker():
         else:
             print(f"Invalid order: {order}. Please use 'desc', 'asc' or 'none")
             raise NotImplementedError
+    
+    def _prepare_input_for_demo_retrieval(self, query, documents, system_prompt='', query_position='last'):
+        '''
+        Only tested with Mistral and Llama-3.1. Models using other tokenizers may need to modify this function.
+        '''
+        llm_prompt = ''
+        document_span_intervals = []
+        
 
+        if self.prompt_template == 'simple':
+            system_prompt = ''
+        elif self.prompt_template == 'simple_instruct':
+            system_prompt = system_prompt
+        elif self.prompt_template == 'instruct':
+            if system_prompt != '':
+                system_prompt = self.retrieval_instruction.format(len(documents), query) + self.prompt_separator + system_prompt
+            else:
+                system_prompt = self.retrieval_instruction.format(len(documents), query)
+        
+        system_prompt = self.prompt_prefix + system_prompt
+
+        query_start_idx = None
+        query_end_idx = None
+        
+        
+        separator_length = self.tokenizer(self.prompt_separator, return_tensors='pt').input_ids.size(1) - self.prompt_bos_length - self.additional_prompt_offset # remove the leading ['<s>', '_'] tokens
+        
+        llm_prompt = system_prompt
+        
+        
+        prompt_length = self.tokenizer(llm_prompt+self.prompt_separator, return_tensors='pt').input_ids.size(1)-separator_length # add and subtract separator tokens for accurate prefix length
+        
+        if query_position == 'first':
+            if self.prompt_template in ['simple', 'instruct']:
+                instruction_prompt = f'Query:'
+
+                llm_prompt += self.prompt_separator + instruction_prompt 
+                prompt_length += separator_length
+                prompt_length += self.tokenizer(self.prompt_separator + instruction_prompt, return_tensors='pt').input_ids.size(1) - self.prompt_bos_length - separator_length - self.additional_prompt_offset
+                query_start_idx = prompt_length - 1 # The ':' after 'Query'    
+            else:
+                llm_prompt += self.prompt_separator
+                prompt_length += separator_length
+                query_start_idx = prompt_length # The start of the query context
+            
+            if self.prompt_template == 'simple':
+                query_prompt = f' {query.strip()}{self.prompt_separator}Answer:'
+            elif self.prompt_template in ['instruct', 'simple_instruct']:
+                query_prompt = f' {query.strip()}'
+            
+            llm_prompt += query_prompt
+            prompt_length += self.tokenizer(query_prompt, return_tensors='pt').input_ids.size(1) - self.prompt_bos_length - self.additional_prompt_offset
+            query_end_idx = prompt_length - 1 
+            
+        
+        if prompt_length != self.tokenizer(llm_prompt, return_tensors='pt').input_ids.size(1):
+                print('Prompt length mismatch!')
+                print(prompt_length, ' vs ', self.tokenizer(llm_prompt, return_tensors='pt').input_ids.size(1))
+                print('-'*30)
+                self.__show_tokens(llm_prompt)
+                raise Exception('ICR prompt length mismatch before adding docs.')
+
+        _doc_separator_length = separator_length
+
+        for i, doc in enumerate(documents):
+            
+            doc = f'[{i+1}] {self.tokenizer.bos_token}'
+            prompt_length += _doc_separator_length
+            llm_prompt += self.prompt_separator + doc
+            doc_length = self.tokenizer(self.prompt_separator + doc, return_tensors='pt').input_ids.size(1) - self.prompt_bos_length - _doc_separator_length - self.additional_prompt_offset # - bos_length for the leading ['<s>'] token, -additional for the potential extra tokens, e.g. the '_' token between <s> and <0x0A> when <0x0A> is the first token for mistral models.
+            
+            document_span_intervals.append((prompt_length, prompt_length + doc_length))
+            prompt_length += doc_length
+
+            if prompt_length != self.tokenizer(llm_prompt, return_tensors='pt').input_ids.size(1):
+                print('Prompt length mismatch @ doc {}!'.format(i))
+                print(prompt_length, ' vs ', self.tokenizer(llm_prompt, return_tensors='pt').input_ids.size(1))
+                print('-'*30)
+                self.__show_tokens(llm_prompt)
+                print('-'*30)
+                print('doc length:', doc_length)
+                self.__show_tokens(self.prompt_separator+doc)
+                raise Exception('ICR prompt length mismatch after adding docs.')
+
+
+        if query_position == 'last':
+            query_start_idx = prompt_length + separator_length
+            if self.prompt_template in ['simple', 'instruct']:
+                instruction_prompt = self.retrieval_instruction_late + self.prompt_separator + 'Query:'
+                llm_prompt += self.prompt_separator + instruction_prompt 
+                prompt_length += separator_length
+                prompt_length += self.tokenizer(self.prompt_separator + instruction_prompt, return_tensors='pt').input_ids.size(1) - self.prompt_bos_length - separator_length - self.additional_prompt_offset
+                
+            else:
+                llm_prompt += self.prompt_separator
+                prompt_length += separator_length
+
+        if self.prompt_template == 'simple':
+            query_prompt = f' {query.strip()}{self.prompt_separator}Answer:'
+        elif self.prompt_template in ['instruct', 'simple_instruct']:
+            query_prompt = f' {query.strip()}'
+            if query_position == 'last':
+                query_prompt += self.prompt_suffix.format(len(documents))
+
+        llm_prompt += query_prompt
+        prompt_length += self.tokenizer(query_prompt, return_tensors='pt').input_ids.size(1) - self.prompt_bos_length - self.additional_prompt_offset
+        if query_position == 'last':
+            query_end_idx = prompt_length - 1
+        return llm_prompt, document_span_intervals, query_start_idx, query_end_idx
+    
     def _prepare_input_for_document_retrieval(self, query, documents, system_prompt='', query_position='last'):
         '''
         Only tested with Mistral and Llama-3.1. Models using other tokenizers may need to modify this function.
