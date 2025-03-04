@@ -237,6 +237,7 @@ class InContextReranker():
         ):
         embeddings = torch.cat([self.doc2embed[i] if i in self.doc2embed else self.get_state(i, self.doc2embed) for i in docs], dim=1)
         self.llm.model.tokenzier = self.tokenizer
+        print(llm_input)
         tokenized_input = self.tokenizer(llm_input,return_tensors='pt').to(self.llm.device)
         _input_ids = tokenized_input.input_ids[:, context_start_idx:]
         _query_indices = list(range(query_start_tok_idx-context_start_idx, query_end_tok_idx-context_start_idx+1))
