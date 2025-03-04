@@ -216,11 +216,10 @@ class InContextReranker():
                                       output_hidden_states=True
                                        )
         old_values = generation_output.hidden_states  
-        import pdb 
-        pdb.set_trace()
-        dct[doc] = old_values[0][0]
+        old_values = torch.cat(old_values.mean(dim=1, keepdim=True), dim=0)
+        dct[doc] = old_values
         
-        return old_values[0][0]
+        return old_values
 
     def score_documents_demo(
             self,
