@@ -522,7 +522,8 @@ class InContextReranker():
 
             _i = 0
             doc_scores = torch.zeros(len(retrieval_doc_pool))
-
+            import pdb 
+            pdb.set_trace()
             for doc_tok_score, doc_tok_score_na in zip(perdoc_result, doc_tok_scores_calib_na):
                 doc_tok_score[1] = doc_tok_score[1].to(doc_tok_score_na[1].device)
                 calibrated_scores = doc_tok_score[1] - doc_tok_score_na[1]
