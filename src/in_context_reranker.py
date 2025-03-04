@@ -481,7 +481,7 @@ class InContextReranker():
 
             doc_scores_calib, doc_tok_scores_calib_na, kv_cache = self.score_documents(llm_prompt, doc_tok_idx_spans, query_start_idx, query_end_idx, return_per_doc_results=return_per_doc_results,  return_cache=True)
             
-            llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo = self._prepare_input_for_document_retrieval(calibration_query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
+            llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo = self._prepare_input_for_demo_retrieval(calibration_query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
 
             doc_scores_calib_demo, doc_tok_scores_calib_na_demo, kv_cache_demo = self.score_documents_demo(retrieval_doc_pool, llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo, return_per_doc_results=return_per_doc_results,  return_cache=True)
             
@@ -502,7 +502,7 @@ class InContextReranker():
         
             doc_scores_query, perdoc_result = self.score_documents(llm_prompt, doc_tok_idx_spans, query_start_idx, query_end_idx, return_per_doc_results=return_per_doc_results,  kv_cache=kv_cache, context_start_idx=context_start_idx)
 
-            llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo = self._prepare_input_for_document_retrieval(query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
+            llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo = self._prepare_input_for_demo_retrieval(query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
         
             doc_scores_query_demo, perdoc_result_demo = self.score_documents_demo(retrieval_doc_pool, llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo, return_per_doc_results=return_per_doc_results,  kv_cache=kv_cache, context_start_idx=context_start_idx)
 
