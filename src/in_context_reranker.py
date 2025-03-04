@@ -209,6 +209,7 @@ class InContextReranker():
         return (sorted_doc_ids, sorted_doc_scores), per_doc_results
     
     def get_state(self, doc, dct):
+        self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         from src.get_embedding import merge_vectors_slerp
         input_ids = self.tokenizer(doc, return_tensors="pt").input_ids.to(self.llm.device)
         generation_output = self.llm.generate(input_ids=input_ids, 
@@ -234,6 +235,8 @@ class InContextReranker():
                         print(e)
                         raise e
         dct[doc] = old_values[0][0]
+        import pdb 
+        pdb.set_trace()
         return old_values[0][0]
 
     def score_documents_demo(
