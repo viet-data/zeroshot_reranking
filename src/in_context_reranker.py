@@ -240,8 +240,6 @@ class InContextReranker():
         
         tokenized_input = self.tokenizer(llm_input,return_tensors='pt').to(self.llm.device)
         _input_ids = tokenized_input.input_ids[:, context_start_idx:]
-        import pdb 
-        pdb.set_trace()
         _query_indices = list(range(query_start_tok_idx-context_start_idx, query_end_tok_idx-context_start_idx+1))
         
         if kv_cache is None:
