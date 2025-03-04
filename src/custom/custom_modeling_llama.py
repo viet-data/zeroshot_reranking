@@ -1023,8 +1023,7 @@ class LlamaModel(LlamaPreTrainedModel):
                 if embeddings is not None:
                     hidden_states[0][input_ids[0]==self.tokenzier.bos_token_id][1:] = embeddings[idx]
             except:
-                import pdb 
-                pdb.set_trace()
+                pass
 
             if self.gradient_checkpointing and self.training:
                 layer_outputs = self._gradient_checkpointing_func(
