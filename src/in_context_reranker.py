@@ -230,13 +230,13 @@ class InContextReranker():
                         cls = old_values[i][j][:,:, :1]
                         middle = old_values[i][j][:,:, 1:-1].mean(dim=2, keepdim=True)
                         last = old_values[i][j][:,:, -1:]
-                        old_values[i][j] = torch.cat([cls, middle, last], dim=2)
+                        old_values[i][j] = torch.cat([middle], dim=2)
                     except Exception as e:
                         print(e)
                         raise e
         dct[doc] = old_values[0][0]
-        import pdb 
-        pdb.set_trace()
+        # import pdb 
+        # pdb.set_trace()
         return old_values[0][0]
 
     def score_documents_demo(
@@ -252,7 +252,7 @@ class InContextReranker():
             return_cache=False,
             kv_cache=None,
         ):
-        embeddings = torch.cat([self.doc2embed[i] if i in self.doc2embed else self.get_state(i, self.doc2embed) for i in docs], dim=1)
+        embeddings = torch.cat([self.doc2embed[i] if i in self.doc2embed else self.get_state(i, self.doc2embed) for i in docs], dim=2)
         self.llm.tokenzier = self.tokenizer
         tokenized_input = self.tokenizer(llm_input,return_tensors='pt').to(self.llm.device)
         _input_ids = tokenized_input.input_ids[:, context_start_idx:]
