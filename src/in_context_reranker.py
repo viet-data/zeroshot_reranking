@@ -489,7 +489,6 @@ class InContextReranker():
 
             doc_scores_calib_demo, doc_tok_scores_calib_na_demo, kv_cache_demo = self.score_documents_demo(retrieval_doc_pool, llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo, return_per_doc_results=return_per_doc_results,  return_cache=True)
             
-            doc_tok_scores_calib_na = [[i[0], i[1] + j[1]] for i, j in zip(doc_tok_scores_calib_na, doc_tok_scores_calib_na_demo)]
             # Use kv_cache from first query to speed up forward() for the calibration query.
             # query_start_idx should be the same for both queries.
             for i in range(len(kv_cache.key_cache)):
@@ -518,12 +517,10 @@ class InContextReranker():
             llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo = self._prepare_input_for_demo_retrieval(query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
         
             doc_scores_query_demo, perdoc_result_demo = self.score_documents_demo(retrieval_doc_pool, llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo, return_per_doc_results=return_per_doc_results,  kv_cache=kv_cache_demo, context_start_idx=context_start_idx_demo)
-            perdoc_result = [[i[0], i[1] + j[1]] for i, j in zip(perdoc_result, perdoc_result_demo)]
 
             _i = 0
             doc_scores = torch.zeros(len(retrieval_doc_pool))
-            import pdb 
-            pdb.set_trace()
+            
             for doc_tok_score, doc_tok_score_na in zip(perdoc_result, doc_tok_scores_calib_na):
                 doc_tok_score[1] = doc_tok_score[1].to(doc_tok_score_na[1].device)
                 calibrated_scores = doc_tok_score[1] - doc_tok_score_na[1]
@@ -537,6 +534,22 @@ class InContextReranker():
                 doc_tok_score_na[1] = doc_tok_score_na[1] * tok_mask
                 doc_tok_score[1] = doc_tok_score[1] - doc_tok_score_na[1]
                 doc_scores[_i] = doc_tok_score[1].sum()
+                _i+=1
+
+            _i = 0
+            for doc_tok_score, doc_tok_score_na in zip(perdoc_result_demo, doc_tok_scores_calib_na_demo):
+                doc_tok_score[1] = doc_tok_score[1].to(doc_tok_score_na[1].device)
+                calibrated_scores = doc_tok_score[1] - doc_tok_score_na[1]
+                
+                mean_bias = calibrated_scores.mean()
+                std_bias = calibrated_scores.std()
+                threshold = mean_bias - 2*std_bias
+                tok_mask = (calibrated_scores>threshold)
+                
+                doc_tok_score[1] = doc_tok_score[1] * tok_mask
+                doc_tok_score_na[1] = doc_tok_score_na[1] * tok_mask
+                doc_tok_score[1] = doc_tok_score[1] - doc_tok_score_na[1]
+                doc_scores[_i] += doc_tok_score[1].sum()
                 _i+=1
 
         per_doc_result = None
