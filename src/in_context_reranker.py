@@ -489,7 +489,7 @@ class InContextReranker():
 
             doc_scores_calib_demo, doc_tok_scores_calib_na_demo, kv_cache_demo = self.score_documents_demo(retrieval_doc_pool, llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo, return_per_doc_results=return_per_doc_results,  return_cache=True)
             
-            doc_tok_scores_calib_na = [[i[0], i[0] + j[0]] for i, j in zip(doc_tok_scores_calib_na, doc_tok_scores_calib_na_demo)]
+            doc_tok_scores_calib_na = [[i[0], i[1] + j[1]] for i, j in zip(doc_tok_scores_calib_na, doc_tok_scores_calib_na_demo)]
             # Use kv_cache from first query to speed up forward() for the calibration query.
             # query_start_idx should be the same for both queries.
             for i in range(len(kv_cache.key_cache)):
@@ -518,7 +518,7 @@ class InContextReranker():
             llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo = self._prepare_input_for_demo_retrieval(query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
         
             doc_scores_query_demo, perdoc_result_demo = self.score_documents_demo(retrieval_doc_pool, llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo, return_per_doc_results=return_per_doc_results,  kv_cache=kv_cache_demo, context_start_idx=context_start_idx_demo)
-            perdoc_result = [[i[0], i[0] + j[0]] for i, j in zip(perdoc_result, perdoc_result_demo)]
+            perdoc_result = [[i[0], i[1] + j[1]] for i, j in zip(perdoc_result, perdoc_result_demo)]
 
             _i = 0
             doc_scores = torch.zeros(len(retrieval_doc_pool))
