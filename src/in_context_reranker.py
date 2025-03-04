@@ -209,34 +209,17 @@ class InContextReranker():
         return (sorted_doc_ids, sorted_doc_scores), per_doc_results
     
     def get_state(self, doc, dct):
-        self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         from src.get_embedding import merge_vectors_slerp
         input_ids = self.tokenizer(doc, return_tensors="pt").input_ids.to(self.llm.device)
-        generation_output = self.llm.generate(input_ids=input_ids, 
-                                       max_new_tokens=1,
-                                       return_dict_in_generate=True,
+        generation_output = self.llm(input_ids=input_ids, 
+                                      output_hidden_states=True
                                        )
-        old_values = generation_output.past_key_values
-        def listit(t):
-            return list(map(listit, t)) if isinstance(t, (list, tuple)) else t
-        old_values = listit(old_values)
-        for i in range(len(old_values)):
-            for j in range(len(old_values[i])):
-                if isinstance(old_values[i][j], tuple):
-                    for k in range(len(old_values[i][j])):
-                        old_values[i][j][k] = merge_vectors_slerp(old_values[i][j][k])
-                else:
-                    try:
-                        cls = old_values[i][j][:,:, :1]
-                        middle = old_values[i][j][:,:, 1:-1].mean(dim=2, keepdim=True)
-                        last = old_values[i][j][:,:, -1:]
-                        old_values[i][j] = torch.cat([middle], dim=2)
-                    except Exception as e:
-                        print(e)
-                        raise e
+        old_values = generation_output.hidden_states  
+        import pdb 
+        pdb.set_trace()
         dct[doc] = old_values[0][0]
-        # import pdb 
-        # pdb.set_trace()
+        
         return old_values[0][0]
 
     def score_documents_demo(
