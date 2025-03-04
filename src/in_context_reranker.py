@@ -549,7 +549,7 @@ class InContextReranker():
                 doc_tok_score[1] = doc_tok_score[1] * tok_mask
                 doc_tok_score_na[1] = doc_tok_score_na[1] * tok_mask
                 doc_tok_score[1] = doc_tok_score[1] - doc_tok_score_na[1]
-                doc_scores[_i] += doc_tok_score[1].sum()
+                doc_scores[_i] += doc_tok_score[1].sum().to(doc_scores[_i].device)
                 _i+=1
 
         per_doc_result = None
