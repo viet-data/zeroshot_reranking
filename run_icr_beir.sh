@@ -5,7 +5,7 @@ top_k=100
 
 for data in trec-covid;
   do
-    CUDA_VISIBLE_DEVICES=0 \
+    #CUDA_VISIBLE_DEVICES=0 \
     python experiments.py \
         --retriever bm25 \
         --data $data \
