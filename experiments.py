@@ -377,6 +377,6 @@ if __name__ == '__main__':
         ndcg, _, recall, precision = evaluator.evaluate(qrels, retrieval_results, ks)
         
         print('NDCG:\n', json.dumps(ndcg, indent=2))
-        with open("output/beir_{}.json".format(args.data), "w") as f:
+        with open("output/beir_{}_{}.json".format(args.reranker, args.data), "w") as f:
             json.dump(ndcg, f) 
 
