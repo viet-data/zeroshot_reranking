@@ -217,11 +217,9 @@ class InContextReranker():
                                         output_hidden_states=True
                                         )
             old_values = generation_output.hidden_states  
-            old_values = torch.cat([karcher_mean_sphere(i) for i in old_values], dim=0)
+            old_values = torch.cat([karcher_mean_sphere(i[0]) for i in old_values], dim=0)
             #old_values = torch.cat([i.mean(dim=1, keepdim=True) for i in old_values], dim=0)
             dct[doc] = old_values
-            import pdb 
-            pdb.set_trace()
             return old_values
 
     def score_documents_demo(
