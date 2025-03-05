@@ -503,7 +503,7 @@ class InContextReranker():
             
             if kv_cache is not None:
                 context_start_idx=query_start_idx
-                context_start_idx_demo=query_start_idx_demo
+                #context_start_idx_demo=query_start_idx_demo
             else:
                 context_start_idx=0
                 context_start_idx_demo=0
