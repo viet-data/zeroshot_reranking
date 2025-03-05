@@ -208,17 +208,27 @@ class InContextReranker():
         assert len(sorted_doc_ids) == len(sorted_doc_scores), "Length mismatch between sorted doc ids ({}) and scores({})!".format(len(sorted_doc_ids), len(sorted_doc_scores))
         return (sorted_doc_ids, sorted_doc_scores), per_doc_results
     
+    def gather(self, states, length):
+        last = states[length:].mean(dim=1, keepdim=True)
+        states = states[:length]
+        weights = (states * last)/(torch.norm(states, dim=1, keepdim=True)*torch.norm(last, dim=1, keepdim=True))
+        weights = weights.sum(dim=1, keepdim=1)
+        return (states * weights).mean(dim=1, keepdim=True)
+
+    
     def get_state(self, doc, dct):
         self.tokenizer.pad_token = self.tokenizer.eos_token
         from src.get_embedding import merge_vectors_slerp, karcher_mean_sphere
-        input_ids = self.tokenizer(doc, return_tensors="pt").input_ids.to(self.llm.device)
+        original_length = len(self.tokenizer(doc).input_ids[0])
+        input_ids = self.tokenizer(doc + "\nSummary content", return_tensors="pt").input_ids.to(self.llm.device)
         with torch.no_grad():
             generation_output = self.llm(input_ids=input_ids, 
                                         output_hidden_states=True
                                         )
             old_values = generation_output.hidden_states  
             #old_values = torch.cat([karcher_mean_sphere(i[0]) for i in old_values], dim=0).unsqueeze(1)
-            old_values = torch.cat([i.mean(dim=1, keepdim=True) for i in old_values], dim=0)
+
+            old_values = torch.cat([(i.mean(dim=1, keepdim=True) + self.gather(i, original_length))/2 for i in old_values], dim=0)
             dct[doc] = old_values
             return old_values
 
@@ -485,9 +495,9 @@ class InContextReranker():
 
             doc_scores_calib, doc_tok_scores_calib_na, kv_cache = self.score_documents(llm_prompt, doc_tok_idx_spans, query_start_idx, query_end_idx, return_per_doc_results=return_per_doc_results,  return_cache=True)
             
-            # llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo = self._prepare_input_for_demo_retrieval(calibration_query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
+            llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo = self._prepare_input_for_demo_retrieval(calibration_query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
 
-            # doc_scores_calib_demo, doc_tok_scores_calib_na_demo, kv_cache_demo = self.score_documents_demo(retrieval_doc_pool, llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo, return_per_doc_results=return_per_doc_results,  return_cache=True)
+            doc_scores_calib_demo, doc_tok_scores_calib_na_demo, kv_cache_demo = self.score_documents_demo(retrieval_doc_pool, llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo, return_per_doc_results=return_per_doc_results,  return_cache=True)
             
             # Use kv_cache from first query to speed up forward() for the calibration query.
             # query_start_idx should be the same for both queries.
@@ -496,14 +506,14 @@ class InContextReranker():
                 kv_cache.value_cache[i] = kv_cache.value_cache[i][:,:,:query_start_idx,:]
             kv_cache._seen_tokens = query_start_idx
 
-            # for i in range(len(kv_cache_demo.key_cache)):
-            #     kv_cache_demo.key_cache[i] = kv_cache_demo.key_cache[i][:,:,:query_start_idx_demo,:]
-            #     kv_cache_demo.value_cache[i] = kv_cache_demo.value_cache[i][:,:,:query_start_idx_demo,:]
-            # kv_cache_demo._seen_tokens = query_start_idx_demo
+            for i in range(len(kv_cache_demo.key_cache)):
+                kv_cache_demo.key_cache[i] = kv_cache_demo.key_cache[i][:,:,:query_start_idx_demo,:]
+                kv_cache_demo.value_cache[i] = kv_cache_demo.value_cache[i][:,:,:query_start_idx_demo,:]
+            kv_cache_demo._seen_tokens = query_start_idx_demo
             
             if kv_cache is not None:
                 context_start_idx=query_start_idx
-                context_start_idx_demo=0#query_start_idx_demo
+                context_start_idx_demo=query_start_idx_demo
             else:
                 context_start_idx=0
                 context_start_idx_demo=0
@@ -516,7 +526,7 @@ class InContextReranker():
         
             llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo = self._prepare_input_for_demo_retrieval(query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
         
-            doc_scores_query_demo, perdoc_result_demo = self.score_documents_demo(retrieval_doc_pool, llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo, return_per_doc_results=return_per_doc_results,  context_start_idx=context_start_idx_demo)
+            doc_scores_query_demo, perdoc_result_demo = self.score_documents_demo(retrieval_doc_pool, llm_prompt_demo, doc_tok_idx_spans_demo, query_start_idx_demo, query_end_idx_demo, return_per_doc_results=return_per_doc_results, kv_cache=kv_cache_demo, context_start_idx=context_start_idx_demo)
 
             _i = 0
             doc_scores = torch.zeros(len(retrieval_doc_pool))
@@ -537,7 +547,6 @@ class InContextReranker():
                 _i+=1
 
             _i = 0
-            doc_tok_scores_calib_na_demo = [[0,perdoc_result_demo[i][1]-perdoc_result_demo[i][1]] for i in range(len(perdoc_result_demo))]
             for doc_tok_score, doc_tok_score_na in zip(perdoc_result_demo, doc_tok_scores_calib_na_demo):
                 doc_tok_score[1] = doc_tok_score[1].to(doc_tok_score_na[1].device)
                 calibrated_scores = doc_tok_score[1] - doc_tok_score_na[1]
