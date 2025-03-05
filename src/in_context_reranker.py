@@ -219,7 +219,7 @@ class InContextReranker():
     def get_state(self, doc, dct):
         self.tokenizer.pad_token = self.tokenizer.eos_token
         from src.get_embedding import merge_vectors_slerp, karcher_mean_sphere
-        original_length = len(self.tokenizer(doc).input_ids[0])
+        original_length = len(self.tokenizer(doc).input_ids)
         input_ids = self.tokenizer(doc + "\nSummary content", return_tensors="pt").input_ids.to(self.llm.device)
         with torch.no_grad():
             generation_output = self.llm(input_ids=input_ids, 
