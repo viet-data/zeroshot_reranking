@@ -212,7 +212,7 @@ class InContextReranker():
         last = states[length:].mean(dim=1, keepdim=True)
         states = states[:length]
         weights = (states * last)/(torch.norm(states, dim=1, keepdim=True)*torch.norm(last, dim=1, keepdim=True))
-        weights = weights.sum(dim=1, keepdim=1)
+        weights = weights.sum(dim=1, keepdim=True)
         return (states * weights).mean(dim=1, keepdim=True)
 
     
