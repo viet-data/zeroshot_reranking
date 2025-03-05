@@ -375,5 +375,8 @@ if __name__ == '__main__':
                     qrels[qid].pop(key)
             
         ndcg, _, recall, precision = evaluator.evaluate(qrels, retrieval_results, ks)
+        
         print('NDCG:\n', json.dumps(ndcg, indent=2))
+        with open("output/beir_{}.json".format(args.data), "w") as f:
+            json.dump(ndcg, f) 
 
