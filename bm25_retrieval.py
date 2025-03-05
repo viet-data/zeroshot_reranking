@@ -51,5 +51,5 @@ def bm25_retrieve_beir(task, K):
     print('Saved retrieval results to ', output_file_name)
 
 # for task in ['trec-covid','nfcorpus','dbpedia-entity','scifact','scidocs','fiqa','fever','climate-fever', 'nq']:
-for task in ['trec-covid']:
+for task in  ['trec-covid','nfcorpus','dbpedia-entity','scifact','scidocs','fiqa','fever','climate-fever', 'nq']:
     bm25_retrieve_beir(task,100)
