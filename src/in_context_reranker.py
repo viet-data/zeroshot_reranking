@@ -537,6 +537,7 @@ class InContextReranker():
                 _i+=1
 
             _i = 0
+            doc_tok_scores_calib_na_demo = [[0,0] for i in range(len(per_doc_result))]
             for doc_tok_score, doc_tok_score_na in zip(perdoc_result_demo, doc_tok_scores_calib_na_demo):
                 doc_tok_score[1] = doc_tok_score[1].to(doc_tok_score_na[1].device)
                 calibrated_scores = doc_tok_score[1] - doc_tok_score_na[1]
