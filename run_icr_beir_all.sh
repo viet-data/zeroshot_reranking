@@ -4,7 +4,7 @@ LLM_NAME=meta-llama/Meta-Llama-3.1-8B-Instruct
 # LLM_NAME=mistralai/Mistral-7B-Instruct-v0.2
 
 top_k=100
-datasets=("nfcorpus" "dbpedia-entity" "scifact" "scidocs" )
+datasets=("trec-covid" "dbpedia-entity")
 
 #"fiqa" "fever" "climate-fever" "nq")
 
