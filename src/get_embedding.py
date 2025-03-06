@@ -1,56 +1,6 @@
 import torch
 import torch.nn.functional as F
 
-def slerp(val, low, high):
-    """
-    Spherical linear interpolation between low and high.
-    Args:
-        val (float): interpolation value between 0 and 1
-        low (Tensor): starting vector
-        high (Tensor): ending vector
-    Returns:
-        Tensor: interpolated vector
-    """
-    low_norm = F.normalize(low, p=2, dim=-1)
-    high_norm = F.normalize(high, p=2, dim=-1)
-    omega = torch.acos(torch.clamp((low_norm * high_norm).sum(-1), -1, 1))
-    so = torch.sin(omega)
-    if torch.any(so == 0):
-        # If the vectors are too close, return linear interpolation
-        return (1.0 - val) * low + val * high
-    return (torch.sin((1.0 - val) * omega) / so).unsqueeze(-1) * low + \
-           (torch.sin(val * omega) / so).unsqueeze(-1) * high
-
-def merge_vectors_slerp(tensor, val=0.1):
-    """
-    Merge vectors along dimension 2 using slerp.
-    Args:
-        tensor (Tensor): input tensor of shape (1, 8, 5, 128)
-        val (float): interpolation value between 0 and 1
-    Returns:
-        Tensor: tensor with merged vectors along dimension 2
-    """
-    val = 0.5
-    # Initialize a list to hold the merged vectors
-    merged_vectors = []
-
-    s1, s2 = tensor.size(1), tensor.size(3)
-    
-    # Iterate over the first two dimensions
-    for i in range(tensor.size(0)):
-        for j in range(tensor.size(1)):
-            # Select the vectors along dimension 2
-            vectors = tensor[i, j, :, :]
-            # Initialize the merged vector with the first vector
-            merged_vector = vectors[0]
-            # Apply slerp sequentially to merge the vectors
-            for k in range(1, vectors.size(0)):
-                merged_vector = slerp(val, merged_vector, vectors[k])
-            merged_vectors.append(merged_vector)
-    
-    # Stack the merged vectors to form the output tensor
-    merged_tensor = torch.stack(merged_vectors).view(1, s1, 1, s2)
-    return merged_tensor
 
 import torch
 
@@ -125,3 +75,65 @@ def karcher_mean_sphere(points, max_iter=100, tol=1e-6):
         mu = mu / (mu.norm(p=2) + 1e-8)
         
     return mu
+
+import torch
+
+def slerp(v0, v1, t, eps=1e-8):
+    """
+    Spherical linear interpolation (slerp) between two vectors v0 and v1.
+    
+    Args:
+        v0 (Tensor): starting vector (or batch of vectors) of shape (..., v)
+        v1 (Tensor): ending vector (or batch of vectors) of same shape as v0.
+        t (float or Tensor): interpolation parameter (0.0 -> v0, 1.0 -> v1).
+        eps (float): small constant to avoid division by zero.
+        
+    Returns:
+        Tensor: interpolated vector(s), same shape as input.
+    """
+    # Normalize the input vectors (ensure they lie on the unit sphere)
+    v0_norm = v0 / (v0.norm(p=2, dim=-1, keepdim=True) + eps)
+    v1_norm = v1 / (v1.norm(p=2, dim=-1, keepdim=True) + eps)
+    
+    # Compute the cosine of the angle between them and clamp for safety.
+    dot = (v0_norm * v1_norm).sum(dim=-1, keepdim=True)
+    dot = torch.clamp(dot, -1.0, 1.0)
+    
+    # Angle between v0 and v1.
+    theta = torch.acos(dot)
+    sin_theta = torch.sin(theta)
+    
+    # If theta is very small, use linear interpolation (to avoid division by zero).
+    factor0 = torch.sin((1 - t) * theta) / (sin_theta + eps)
+    factor1 = torch.sin(t * theta) / (sin_theta + eps)
+    
+    return factor0 * v0_norm + factor1 * v1_norm
+
+def merge_vectors_slerp(vectors):
+    """
+    Merges a list (tensor) of vectors (shape: [n, v]) by iteratively slerping them.
+    
+    Args:
+        vectors (Tensor): tensor of shape (n, v) where n is the number of vectors.
+        
+    Returns:
+        Tensor: merged vector of shape (v,), approximately representing the spherical mean.
+    """
+    n = vectors.shape[0]
+    if n == 0:
+        raise ValueError("Input tensor must contain at least one vector.")
+    
+    # Start with the first vector, normalized
+    merged = vectors[0] / (vectors[0].norm(p=2) + 1e-8)
+    
+    # Iteratively merge each vector into the running merged result.
+    for i in range(1, n):
+        current = vectors[i] / (vectors[i].norm(p=2) + 1e-8)
+        # Choose an interpolation parameter; here we use t = 1/(i+1) so that later vectors
+        # have less influence, but you may change this weighting.
+        t = 1.0 / (i + 1)
+        merged = slerp(merged, current, t)
+    
+    # Optionally, re-normalize the final merged vector.
+    merged = merged / (merged.norm(p=2) + 1e-8)
+    return merged
