@@ -209,13 +209,14 @@ class InContextReranker():
         return (sorted_doc_ids, sorted_doc_scores), per_doc_results
     
     def gather(self, states, length):
-        last = states[:, length:].mean(dim=1, keepdim=True)
-        states = states[:, :length]
+        states = states[0]
+        last = states[length:].mean(dim=0, keepdim=True)
+        states = states[:length]
         weights = (states * last)/(torch.norm(states, dim=1, keepdim=True)*torch.norm(last, dim=1, keepdim=True))
         weights = weights.sum(dim=1, keepdim=True)
         import pdb 
         pdb.set_trace()
-        return (states * weights).mean(dim=1, keepdim=True)
+        return (states * weights).mean(dim=0, keepdim=True).unsqueeze(0)
 
     
     def get_state(self, doc, dct):
