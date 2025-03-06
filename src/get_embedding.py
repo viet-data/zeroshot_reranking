@@ -107,7 +107,7 @@ def slerp(v0, v1, t, eps=1e-8):
     factor0 = torch.sin((1 - t) * theta) / (sin_theta + eps)
     factor1 = torch.sin(t * theta) / (sin_theta + eps)
     
-    return factor0 * v0_norm + factor1 * v1_norm
+    return factor0 * v0 + factor1 * v1
 
 def merge_vectors_slerp(vectors):
     """
@@ -124,16 +124,15 @@ def merge_vectors_slerp(vectors):
         raise ValueError("Input tensor must contain at least one vector.")
     
     # Start with the first vector, normalized
-    merged = vectors[0] / (vectors[0].norm(p=2) + 1e-8)
+    merged = vectors[0] 
     
     # Iteratively merge each vector into the running merged result.
     for i in range(1, n):
-        current = vectors[i] / (vectors[i].norm(p=2) + 1e-8)
+        current = vectors[i]
         # Choose an interpolation parameter; here we use t = 1/(i+1) so that later vectors
         # have less influence, but you may change this weighting.
         t = 1.0 / (i + 1)
         merged = slerp(merged, current, t)
     
     # Optionally, re-normalize the final merged vector.
-    merged = merged / (merged.norm(p=2) + 1e-8)
-    return merged
+    return merged.unsqueeze(0)
