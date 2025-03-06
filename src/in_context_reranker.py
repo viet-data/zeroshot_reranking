@@ -233,8 +233,7 @@ class InContextReranker():
             #old_values = torch.cat([(self.gather(i, original_length)) for i in old_values], dim=0)
             #old_values = torch.cat([(i.mean(dim=1, keepdim=True) + self.gather(i, original_length))/2 for i in old_values], dim=0)
             dct[doc] = old_values
-            import pdb 
-            pdb.set_trace()
+    
             return old_values
 
     def score_documents_demo(
