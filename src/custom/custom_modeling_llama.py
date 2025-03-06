@@ -1015,14 +1015,14 @@ class LlamaModel(LlamaPreTrainedModel):
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
         next_decoder_cache = None
-
+        embeddings = embeddings.to(hidden_states.device)
         for idx, decoder_layer in enumerate(self.layers):
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
             try:
                 if embeddings is not None:
                     new_embeddings = torch.cat([hidden_states[0][input_ids[0]==self.tokenzier.bos_token_id][:1,:], embeddings[idx]], dim=0)
-                    hidden_states[0][input_ids[0]==self.tokenzier.bos_token_id] = new_embeddings.to(hidden_states.device)
+                    hidden_states[0][input_ids[0]==self.tokenzier.bos_token_id] = new_embeddings.to(hidden_states)
             except:
                 import pdb 
                 pdb.set_trace()
