@@ -214,8 +214,6 @@ class InContextReranker():
         states = states[:length]
         weights = (states * last)/(torch.norm(states, dim=1, keepdim=True)*torch.norm(last, dim=1, keepdim=True))
         weights = weights.sum(dim=1, keepdim=True)
-        import pdb 
-        pdb.set_trace()
         return (states * weights).mean(dim=0, keepdim=True).unsqueeze(0)
 
     
