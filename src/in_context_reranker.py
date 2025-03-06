@@ -215,7 +215,7 @@ class InContextReranker():
         weights = (states * last)/(torch.norm(states, dim=1, keepdim=True)*torch.norm(last, dim=1, keepdim=True))
         weights = weights.sum(dim=1)
         weights = torch.nn.functional.softmax(weights, dim=0)
-        weights = weights.unsqueeze(0)
+        weights = weights.unsqueeze(-1)
         return (states * weights).mean(dim=0, keepdim=True).unsqueeze(0)
 
     
