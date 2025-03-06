@@ -1022,7 +1022,7 @@ class LlamaModel(LlamaPreTrainedModel):
                 all_hidden_states += (hidden_states,)
             try:
                 if embeddings is not None:
-                    new_embeddings = torch.cat([hidden_states[0][input_ids[0]==self.tokenzier.bos_token_id][:1,:], embeddings[idx].to(hidden_states.device)], dim=0)
+                    new_embeddings = torch.cat([hidden_states[0][input_ids[0].to(hidden_states.device)==self.tokenzier.bos_token_id][:1,:], embeddings[idx].to(hidden_states.device)], dim=0)
                     hidden_states[0][input_ids[0]==self.tokenzier.bos_token_id] = new_embeddings.to(hidden_states.device)
             except:
                 import pdb 
