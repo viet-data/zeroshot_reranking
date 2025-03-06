@@ -1015,7 +1015,8 @@ class LlamaModel(LlamaPreTrainedModel):
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
         next_decoder_cache = None
-        embeddings = embeddings.to(hidden_states.device)
+        if embeddings is not None:
+            embeddings = embeddings.to(hidden_states.device)
         for idx, decoder_layer in enumerate(self.layers):
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
