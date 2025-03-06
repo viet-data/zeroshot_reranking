@@ -267,8 +267,6 @@ class InContextReranker():
             kv_cache.query_cache = []
             _query_indices = _query_indices
             kv_cache._query_indices = _query_indices
-        import pdb 
-        pdb.set_trace()
         with torch.no_grad():
             output = self.llm(
                 input_ids=_input_ids,
