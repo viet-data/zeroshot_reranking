@@ -1027,9 +1027,7 @@ class LlamaModel(LlamaPreTrainedModel):
                 import pdb 
                 pdb.set_trace()
                 pass
-            if embeddings is not None:
-                import pdb 
-                pdb.set_trace()
+           
 
             if self.gradient_checkpointing and self.training:
                 layer_outputs = self._gradient_checkpointing_func(
