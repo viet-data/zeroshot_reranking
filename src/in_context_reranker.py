@@ -694,7 +694,7 @@ class InContextReranker():
         Only tested with Mistral and Llama-3.1. Models using other tokenizers may need to modify this function.
         '''
         from src.chat import chat_with_llama
-        sample_answer = chat_with_llama(query, self.llm, self.tokenizer)
+        sample_answer = chat_with_llama(f"Answer the following query: {query}", self.llm, self.tokenizer)
         llm_prompt = ''
         document_span_intervals = []
         
