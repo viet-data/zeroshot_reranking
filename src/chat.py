@@ -37,15 +37,14 @@ def chat_with_llama(prompt, model, tokenizer, chat_history=None, max_length=50):
     
     # Encode the conversation as input IDs.
     input_ids = tokenizer.encode(conversation, return_tensors="pt")
-    
-    # Generate a continuation using the model.
-    output_ids = model.generate(
-        input_ids,
-        max_length=max_length,
-        do_sample=True,      # Enable sampling for more varied responses.
-        top_k=50,            # You can adjust top_k or other parameters.
-        pad_token_id=tokenizer.eos_token_id  # Ensure proper padding.
-    )
+    with torch.no_grad():
+        
+        # Generate a continuation using the model.
+        output_ids = model.generate(
+            input_ids,
+            max_length=max_length,
+            pad_token_id=tokenizer.eos_token_id  # Ensure proper padding.
+        )
     
     # Decode the generated tokens.
     generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
