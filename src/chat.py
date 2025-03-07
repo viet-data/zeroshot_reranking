@@ -4,7 +4,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 # Load the tokenizer and model.
 # Change the model_name if needed (e.g. "meta-llama/Llama-3.1-8B-Instruct")
 
-def chat_with_llama(prompt, model, tokenizer, chat_history=None, max_length=50):
+def chat_with_llama(prompt, model, tokenizer, chat_history=None, max_new_tokens=50):
     """
     Chat with a Llama 3.1 model using the transformers generate() method.
 
@@ -42,7 +42,7 @@ def chat_with_llama(prompt, model, tokenizer, chat_history=None, max_length=50):
         # Generate a continuation using the model.
         output_ids = model.generate(
             input_ids,
-            max_length=max_length,
+            max_new_tokens=max_new_tokens,
             pad_token_id=tokenizer.eos_token_id  # Ensure proper padding.
         )
     
