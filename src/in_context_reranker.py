@@ -549,21 +549,21 @@ class InContextReranker():
                 doc_scores[_i] = doc_tok_score[1].sum()
                 _i+=1
 
-            _i = 0
-            for doc_tok_score, doc_tok_score_na in zip(perdoc_result_demo, doc_tok_scores_calib_na_demo):
-                doc_tok_score[1] = doc_tok_score[1].to(doc_tok_score_na[1].device)
-                calibrated_scores = doc_tok_score[1] - doc_tok_score_na[1]
+            # _i = 0
+            # for doc_tok_score, doc_tok_score_na in zip(perdoc_result_demo, doc_tok_scores_calib_na_demo):
+            #     doc_tok_score[1] = doc_tok_score[1].to(doc_tok_score_na[1].device)
+            #     calibrated_scores = doc_tok_score[1] - doc_tok_score_na[1]
                 
-                mean_bias = calibrated_scores.mean()
-                std_bias = calibrated_scores.std()
-                threshold = mean_bias - 2*std_bias
-                tok_mask = (calibrated_scores>threshold)
+            #     mean_bias = calibrated_scores.mean()
+            #     std_bias = calibrated_scores.std()
+            #     threshold = mean_bias - 2*std_bias
+            #     tok_mask = (calibrated_scores>threshold)
                 
-                doc_tok_score[1] = doc_tok_score[1] * tok_mask
-                doc_tok_score_na[1] = doc_tok_score_na[1] * tok_mask
-                doc_tok_score[1] = doc_tok_score[1] - doc_tok_score_na[1]
-                doc_scores[_i] += doc_tok_score[1].sum().to(doc_scores[_i].device)
-                _i+=1
+            #     doc_tok_score[1] = doc_tok_score[1] * tok_mask
+            #     doc_tok_score_na[1] = doc_tok_score_na[1] * tok_mask
+            #     doc_tok_score[1] = doc_tok_score[1] - doc_tok_score_na[1]
+            #     doc_scores[_i] += doc_tok_score[1].sum().to(doc_scores[_i].device)
+            #     _i+=1
 
         per_doc_result = None
         if order in ['desc', 'asc']:
