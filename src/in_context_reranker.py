@@ -694,7 +694,7 @@ class InContextReranker():
         Only tested with Mistral and Llama-3.1. Models using other tokenizers may need to modify this function.
         '''
         from src.chat import chat_with_llama
-        sample_answer = chat_with_llama(query, self.llm, self.tokenizer)
+        sample_answer = chat_with_llama(f"What kind of information do I need to answer the following query: {query}", self.llm, self.tokenizer)
         print(sample_answer)
         llm_prompt = ''
         document_span_intervals = []
@@ -710,7 +710,7 @@ class InContextReranker():
             else:
                 system_prompt = self.retrieval_instruction.format(len(documents), query)
         
-        system_prompt = f"Sample Answer: {sample_answer}\n" + self.prompt_prefix + system_prompt
+        system_prompt = f"Require information: {sample_answer}\n" + self.prompt_prefix + system_prompt
 
         query_start_idx = None
         query_end_idx = None

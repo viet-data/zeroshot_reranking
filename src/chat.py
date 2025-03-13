@@ -4,7 +4,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 # Load the tokenizer and model.
 # Change the model_name if needed (e.g. "meta-llama/Llama-3.1-8B-Instruct")
 
-def chat_with_llama(prompt, model, tokenizer, chat_history=None, max_new_tokens=50):
+def chat_with_llama(prompt, model, tokenizer, chat_history=None, max_new_tokens=100):
     """
     Chat with a Llama 3.1 model using the transformers generate() method.
 
@@ -41,6 +41,7 @@ def chat_with_llama(prompt, model, tokenizer, chat_history=None, max_new_tokens=
         )
     
     # Decode the generated tokens.
+    conversation = tokenizer.decode(input_ids, skip_special_tokens=True)
     generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
     
     # Extract the new assistant response.
