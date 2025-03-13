@@ -491,10 +491,12 @@ class InContextReranker():
         elif self.scoring_strategy == 'masked_NA_calibration':
             return_per_doc_results = 'tok'
             # The default ICR method
-            
+            from src.chat import chat_with_llama
+            sample_answer = chat_with_llama(f"What kind of information do I need to answer the following query: {query}", self.llm, self.tokenizer)
+            print(sample_answer)
             # FP with calibration query
             calibration_query = 'N/A'
-            llm_prompt, doc_tok_idx_spans, query_start_idx, query_end_idx = self._prepare_input_for_document_retrieval(calibration_query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
+            llm_prompt, doc_tok_idx_spans, query_start_idx, query_end_idx = self._prepare_input_for_document_retrieval(calibration_query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last', sample_answer=sample_answer)
 
             doc_scores_calib, doc_tok_scores_calib_na, kv_cache = self.score_documents(llm_prompt, doc_tok_idx_spans, query_start_idx, query_end_idx, return_per_doc_results=return_per_doc_results,  return_cache=True)
             
@@ -522,7 +524,7 @@ class InContextReranker():
                 context_start_idx_demo=0
 
             # FP with the actual query            
-            llm_prompt, doc_tok_idx_spans, query_start_idx, query_end_idx = self._prepare_input_for_document_retrieval(query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last')
+            llm_prompt, doc_tok_idx_spans, query_start_idx, query_end_idx = self._prepare_input_for_document_retrieval(query, retrieval_doc_pool, system_prompt=prompt_prefix, query_position='last', sample_answer=sample_answer)
         
             doc_scores_query, perdoc_result = self.score_documents(llm_prompt, doc_tok_idx_spans, query_start_idx, query_end_idx, return_per_doc_results=return_per_doc_results,  kv_cache=kv_cache, context_start_idx=context_start_idx)
 
@@ -689,14 +691,14 @@ class InContextReranker():
             query_end_idx = prompt_length - 1
         return llm_prompt, document_span_intervals, query_start_idx, query_end_idx
     
-    def _prepare_input_for_document_retrieval(self, query, documents, system_prompt='', query_position='last'):
+    def _prepare_input_for_document_retrieval(self, query, documents, system_prompt='', query_position='last', sample_answer=None):
         '''
         Only tested with Mistral and Llama-3.1. Models using other tokenizers may need to modify this function.
         '''
         from src.chat import chat_with_llama
-        if query != "N/A":
-            sample_answer = chat_with_llama(f"What kind of information do I need to answer the following query: {query}", self.llm, self.tokenizer)
-            print(sample_answer)
+        # if query != "N/A":
+        #     sample_answer = chat_with_llama(f"What kind of information do I need to answer the following query: {query}", self.llm, self.tokenizer)
+        #     print(sample_answer)
         llm_prompt = ''
         document_span_intervals = []
         
@@ -710,7 +712,7 @@ class InContextReranker():
                 system_prompt = self.retrieval_instruction.format(len(documents), query) + self.prompt_separator + system_prompt
             else:
                 system_prompt = self.retrieval_instruction.format(len(documents), query)
-        if query != "N/A":
+        if sample_answer is not None:
             system_prompt = f"Require information: {sample_answer}\n" + self.prompt_prefix + system_prompt
         else:
             system_prompt = self.prompt_prefix + system_prompt
