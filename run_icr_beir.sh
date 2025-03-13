@@ -3,7 +3,7 @@ LLM_NAME=meta-llama/Meta-Llama-3.1-8B-Instruct
 
 top_k=100
 
-for data in trec-covid;
+for data in dbpedia-entity;
   do
     #CUDA_VISIBLE_DEVICES=0 \
     python experiments.py \
