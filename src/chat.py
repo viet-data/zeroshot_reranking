@@ -20,7 +20,7 @@ def chat_with_llama(prompt, model, tokenizer, chat_history=None, max_new_tokens=
     """
     # Start with a default system prompt if no history exists.
     if chat_history is None:
-        chat_history = [{"role": "system", "content": "You are a helpful assistant."}]
+        chat_history = [{"role": "system", "content": "You are a helpful assistant. Answer directly without additional words:"}]
     
     # Append the user's new prompt.
     chat_history.append({"role": "user", "content": prompt})

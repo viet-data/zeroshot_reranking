@@ -695,7 +695,7 @@ class InContextReranker():
         '''
         from src.chat import chat_with_llama
         if query != "N/A":
-            sample_answer = chat_with_llama(f"What kind of information do I need to answer the following query, answer directly without additional words: {query}", self.llm, self.tokenizer)
+            sample_answer = chat_with_llama(f"What kind of information do I need to answer the following query: {query}", self.llm, self.tokenizer)
             print(sample_answer)
         llm_prompt = ''
         document_span_intervals = []
