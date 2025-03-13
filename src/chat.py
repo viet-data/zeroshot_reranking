@@ -41,7 +41,7 @@ def chat_with_llama(prompt, model, tokenizer, chat_history=None, max_new_tokens=
         )
     
     # Decode the generated tokens.
-    conversation = tokenizer.decode(input_ids, skip_special_tokens=True)
+    conversation = tokenizer.decode(input_ids[0], skip_special_tokens=True)
     generated_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
     
     # Extract the new assistant response.
