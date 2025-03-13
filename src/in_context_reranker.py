@@ -534,20 +534,20 @@ class InContextReranker():
             _i = 0
             doc_scores = torch.zeros(len(retrieval_doc_pool))
             
-            # for doc_tok_score, doc_tok_score_na in zip(perdoc_result, doc_tok_scores_calib_na):
-            #     doc_tok_score[1] = doc_tok_score[1].to(doc_tok_score_na[1].device)
-            #     calibrated_scores = doc_tok_score[1] - doc_tok_score_na[1]
+            for doc_tok_score, doc_tok_score_na in zip(perdoc_result, doc_tok_scores_calib_na):
+                doc_tok_score[1] = doc_tok_score[1].to(doc_tok_score_na[1].device)
+                calibrated_scores = doc_tok_score[1] - doc_tok_score_na[1]
                 
-            #     mean_bias = calibrated_scores.mean()
-            #     std_bias = calibrated_scores.std()
-            #     threshold = mean_bias - 2*std_bias
-            #     tok_mask = (calibrated_scores>threshold)
+                mean_bias = calibrated_scores.mean()
+                std_bias = calibrated_scores.std()
+                threshold = mean_bias - 2*std_bias
+                tok_mask = (calibrated_scores>threshold)
                 
-            #     doc_tok_score[1] = doc_tok_score[1] * tok_mask
-            #     doc_tok_score_na[1] = doc_tok_score_na[1] * tok_mask
-            #     doc_tok_score[1] = doc_tok_score[1] - doc_tok_score_na[1]
-            #     doc_scores[_i] = doc_tok_score[1].sum()
-            #     _i+=1
+                doc_tok_score[1] = doc_tok_score[1] * tok_mask
+                doc_tok_score_na[1] = doc_tok_score_na[1] * tok_mask
+                doc_tok_score[1] = doc_tok_score[1] - doc_tok_score_na[1]
+                doc_scores[_i] = doc_tok_score[1].sum()
+                _i+=1
 
             _i = 0
             for doc_tok_score, doc_tok_score_na in zip(perdoc_result_demo, doc_tok_scores_calib_na_demo):
