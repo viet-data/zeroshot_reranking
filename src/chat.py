@@ -30,6 +30,7 @@ def chat_with_llama(prompt, model, tokenizer, chat_history=None, max_new_tokens=
     
     # Encode the conversation as input IDs.
     input_ids = tokenizer.encode(conversation, return_tensors="pt")
+    input_ids = input_ids.to(model.device)
     with torch.no_grad():
         
         # Generate a continuation using the model.
