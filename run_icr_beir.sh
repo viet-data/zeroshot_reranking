@@ -3,7 +3,7 @@ LLM_NAME=meta-llama/Meta-Llama-3.1-8B-Instruct
 
 top_k=100
 
-for data in nqtrec-covid;
+for data in trec-covid;
   do
     #CUDA_VISIBLE_DEVICES=0 \
     python experiments.py \
