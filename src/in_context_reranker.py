@@ -216,14 +216,14 @@ class InContextReranker():
         weights = weights.sum(dim=1)
         weights = torch.nn.functional.softmax(weights, dim=0)
         weights = weights.unsqueeze(-1)
-        return (states * weights).mean(dim=0, keepdim=True).unsqueeze(0)
+        return (states * weights).sum(dim=0, keepdim=True).unsqueeze(0)
 
     
     def get_state(self, doc, dct):
         self.tokenizer.pad_token = self.tokenizer.eos_token
         from src.get_embedding import merge_vectors_slerp, karcher_mean_sphere
-        original_length = len(self.tokenizer(doc).input_ids)
-        input_ids = self.tokenizer(doc + "\nSummary content of the above text", return_tensors="pt").input_ids.to(self.llm.device)
+        original_length = len(self.tokenizer("Dcument: " + doc).input_ids)
+        input_ids = self.tokenizer("Dcument: " + doc + "\nSummary content of the above document", return_tensors="pt").input_ids.to(self.llm.device)
         with torch.no_grad():
             generation_output = self.llm(input_ids=input_ids, 
                                         output_hidden_states=True
