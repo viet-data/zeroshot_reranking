@@ -26,14 +26,7 @@ def chat_with_llama(prompt, model, tokenizer, chat_history=None, max_new_tokens=
     chat_history.append({"role": "user", "content": prompt})
     
     # Build the conversation text from history.
-    conversation = ""
-    for message in chat_history:
-        if message["role"] == "system":
-            conversation += "System: " + message["content"] + "\n"
-        elif message["role"] == "user":
-            conversation += "User: " + message["content"] + "\n"
-        elif message["role"] == "assistant":
-            conversation += "Assistant: " + message["content"] + "\n"
+    conversation = tokenizer.apply_chat_template(chat_history, tokenize=False)
     
     # Encode the conversation as input IDs.
     input_ids = tokenizer.encode(conversation, return_tensors="pt")
@@ -51,11 +44,7 @@ def chat_with_llama(prompt, model, tokenizer, chat_history=None, max_new_tokens=
     
     # Extract the new assistant response.
     # We assume the assistant’s reply starts after the last "Assistant:" marker.
-    if "Assistant:" in generated_text:
-        assistant_reply = generated_text.split("Assistant:")[-1].strip()
-    else:
-        # Fallback: take the text that comes after the input prompt.
-        assistant_reply = generated_text[len(conversation):].strip()
+    assistant_reply = generated_text[len(conversation):].strip()
     
     # Append the assistant's reply to the conversation history.
     chat_history.append({"role": "assistant", "content": assistant_reply})
